@@ -11,7 +11,7 @@ BEGIN {
 }
 
 my $sqlt_version = $SQL::Translator::VERSION;
-use YAML qw(Load);
+use YAML::Any qw(Load);
 my $yaml = Load(<<YAML);
 ---
 schema:
