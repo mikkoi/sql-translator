@@ -1,10 +1,11 @@
 #!/usr/bin/perl
 # vim:set ft=perl:
 
-$| = 1;
-
 use strict;
 use warnings;
+
+$| = 1;
+
 use Test::More;
 use Test::Exception;
 use SQL::Translator::Schema::Constants;
