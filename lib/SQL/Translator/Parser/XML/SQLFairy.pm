@@ -113,7 +113,7 @@ sub parse {
   ) {
     debug "Adding table:" . $xp->findvalue('sqlf:name', $tblnode);
 
-    my $table = $schema->add_table(get_tagfields($xp, $tblnode, "sqlf:" => qw/name order extra/))
+    my $table = $schema->add_table(get_tagfields($xp, $tblnode, "sqlf:" => qw/name order extra comments/))
         or die $schema->error;
 
     #
@@ -156,7 +156,7 @@ sub parse {
       my %data = get_tagfields(
         $xp, $_, "sqlf:",
         qw/name type table fields reference_fields reference_table
-            match_type on_delete on_update extra/
+            expression match_type on_delete on_update extra/
       );
       $table->add_constraint(%data) or die $table->error;
     }
