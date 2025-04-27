@@ -17,6 +17,18 @@ SQL::Translator::Schema::Sequence - SQL::Translator Sequence object
 
 C<SQL::Translator::Schema::Sequence> is the Sequence object.
 
+Sequence object implements all attributes which sequences have in the following databases:
+PostgreSQL, Oracle (partial), Microsoft SQL Server, Db2 and Snowflake.
+Every producer supports only the subset of parameters valid for itself.
+
+Only parameter B<name> is mandatory.
+
+It also has the following attributes (inherited from C<SQL::Translator::Schema::Object>):
+
+comments, an array of single line or multiline comments.
+
+extra, any other user defined attributes.
+
 =head1 METHODS
 
 =cut
@@ -47,12 +59,12 @@ Object constructor.
       name             => 'master',      # name of the sequence
       increment        => 1,             # increment
       start            => 1,             # sequence start point
-      maxvalue
-      minvalue
-      cycle
-      cache
-      comments
-      extra            => {abbr = "mst'} # extra hash
+      maxvalue         => 5,
+      minvalue         => 1,
+      cycle            => 0,
+      cache            => 3,
+      comments         => [ "multi\nline", 'single line' ],
+      extra            => { abbr >= 'mst' }, # extra hash
   );
 
 =cut
@@ -127,6 +139,43 @@ Get or set the sequence's name.
 has name => (is => 'rw', default => quote_sub(q{ '' }));
 
 around name => sub {
+  my ($orig, $self, $arg) = @_;
+  $self->$orig($arg || ());
+};
+
+
+=head2 temporary
+
+Get or set if sequence is temporary, i.e. it lasts only the current session. Boolean.
+
+In Oracle, this attribute is called "SESSION" (the opposite being "GLOBAL".
+
+  my $sequence = $sequence->temporary(1);
+  my $sequence = $sequence->temporary(0);
+  my $sequence = $sequence->temporary();
+
+=cut
+
+has temporary => (
+  is => 'rw',
+  isa => quote_sub( q{ die unless $_[0] =~ m/^(?: 0|1|)$/msx; }),
+  default => quote_sub( q{0} ),
+);
+
+around temporary => \&ex2err;
+
+
+=head2 data_type
+
+Get or set the sequence's data_type.
+
+  my $data_type = $sequence->data_type('foo');
+
+=cut
+
+has data_type => (is => 'rw', default => quote_sub(q{ '' }));
+
+around data_type => sub {
   my ($orig, $self, $arg) = @_;
   $self->$orig($arg || ());
 };
@@ -234,6 +283,61 @@ has cache => (
 );
 
 around cache => \&ex2err;
+
+
+=head2 guarantee_order
+
+Get or set if sequence creates values in guarantee_order. Boolean.
+
+  my $sequence = $sequence->guarantee_order(1);
+  my $sequence = $sequence->guarantee_order(0);
+  my $sequence = $sequence->guarantee_order();
+
+=cut
+
+has guarantee_order => (
+  is => 'rw',
+  isa => quote_sub( q{ die unless $_[0] =~ m/^(?: 0|1|)$/msx; }),
+  default => quote_sub( q{0} ),
+);
+
+around guarantee_order => \&ex2err;
+
+
+=head2 owner
+
+Get or set the owner.
+
+  my $sequence = $sequence->owner('schema.table.column');
+
+=cut
+
+has owner => (
+  is => 'rw',
+  isa => quote_sub( q{ die unless $_[0] =~ m/^[[:graph:]]{0,}$/msx; }),
+  default => quote_sub( q{0} ),
+);
+
+around owner => \&ex2err;
+
+
+=head2 keep
+
+Get or set if sequence keeps NEXTVAL during replay for Application Continuity (Oracle). Boolean.
+
+  my $sequence = $sequence->keep(1);
+  my $sequence = $sequence->keep(0);
+  my $sequence = $sequence->keep();
+
+=cut
+
+has keep => (
+  is => 'rw',
+  isa => quote_sub( q{ die unless $_[0] =~ m/^(?: 0|1|)$/msx; }),
+  default => quote_sub( q{0} ),
+);
+
+around keep => \&ex2err;
 
 
 =head2 comments
