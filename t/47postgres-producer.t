@@ -22,6 +22,83 @@ use SQL::Translator;
 my $PRODUCER = \&SQL::Translator::Producer::PostgreSQL::create_field;
 
 {
+  my $sequence       =  SQL::Translator::Schema::Sequence->new(
+    name             => 'master',      # name of the sequence
+    temporary        => 0,
+    increment        => 1,             # increment
+    minvalue         => 1,
+    maxvalue         => 5,
+    start            => 1,             # sequence start point
+    cycle            => 1,
+    cache            => 3,
+    comments         => [ "multi\nline", 'single line' ],
+    extra            => { abbr => 'mst' }, # extra hash
+  );
+  is($sequence->name, 'master');
+  my ($create, $fks)
+      = SQL::Translator::Producer::PostgreSQL::create_sequence($sequence,
+        { quote_identifiers => 1, attach_comments => 1, }, );
+  my $expected = <<EOESQL;
+--
+-- Sequence: master
+--
+CREATE SEQUENCE "master" INCREMENT BY 1 MINVALUE 1 MAXVALUE 5 START WITH 1 CACHE 3 CYCLE OWNED BY NONE;
+
+COMMENT on SEQUENCE "master" IS 'multi
+line
+single line';
+EOESQL
+
+  $expected =~ s/\n\z//;
+  is($create, $expected);
+}
+
+{
+  my $sequence       =  SQL::Translator::Schema::Sequence->new(
+    name             => 'service',      # name of the sequence
+  );
+  is($sequence->name, 'service');
+  my ($create, $fks)
+      = SQL::Translator::Producer::PostgreSQL::create_sequence($sequence,
+        { quote_identifiers => 1, , attach_comments => 0 });
+  my $expected = <<EOESQL;
+--
+-- Sequence: service
+--
+CREATE SEQUENCE "service" NO MINVALUE NO MAXVALUE NO CYCLE OWNED BY NONE;
+EOESQL
+
+  $expected =~ s/\n\z//;
+  is($create, $expected);
+}
+
+{
+  my $sequence       =  SQL::Translator::Schema::Sequence->new(
+    name             => 'foo.bar',
+    temporary        => 1,
+    increment        => 2,
+    owner            => 'foo.baz.qux',
+    order            => 0,                    # Not used in Pg sequences.
+    comments         => [ 'Sequence tied to column qux in table foo.baz' ],
+  );
+  is($sequence->name, 'foo.bar');
+  my ($create, $fks)
+      = SQL::Translator::Producer::PostgreSQL::create_sequence($sequence,
+        { attach_comments => 1, }, );
+  my $expected = <<EOESQL;
+--
+-- Sequence: foo.bar
+--
+CREATE TEMPORARY SEQUENCE foo.bar INCREMENT BY 2 NO MINVALUE NO MAXVALUE NO CYCLE OWNED BY foo.baz.qux;
+
+COMMENT on SEQUENCE foo.bar IS 'Sequence tied to column qux in table foo.baz';
+EOESQL
+
+  $expected =~ s/\n\z//;
+  is($create, $expected);
+}
+
+{
   my $table = SQL::Translator::Schema::Table->new(
     name     => 'foo.bar',
     comments => [ "multi\nline", 'single line' ]
