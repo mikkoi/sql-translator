@@ -8,10 +8,10 @@ SQL::Translator::Schema::Sequence - SQL::Translator Sequence object
 
 =head1 SYNOPSIS
 
-  use SQL::Translator::Schema::Sequence;
-  my $sequence = SQL::Translator::Schema::Sequence->new(
-      name   => 'foo',
-  );
+    use SQL::Translator::Schema::Sequence;
+    my $sequence = SQL::Translator::Schema::Sequence->new(
+        name   => 'foo',
+    );
 
 =head1 DESCRIPTION
 
@@ -55,32 +55,32 @@ use overload
 
 Object constructor.
 
-  my $sequence         =  SQL::Translator::Schema::Sequence->new(
-      name             => 'master',      # name of the sequence
-      increment        => 1,             # increment
-      start            => 1,             # sequence start point
-      maxvalue         => 5,
-      minvalue         => 1,
-      cycle            => 0,
-      cache            => 3,
-      comments         => [ "multi\nline", 'single line' ],
-      extra            => { abbr >= 'mst' }, # extra hash
-  );
+    my $sequence         =  SQL::Translator::Schema::Sequence->new(
+        name             => 'master',      # name of the sequence
+        increment        => 1,             # increment
+        start            => 1,             # sequence start point
+        maxvalue         => 5,
+        minvalue         => 1,
+        cycle            => 0,
+        cache            => 3,
+        comments         => [ "multi\nline", 'single line' ],
+        extra            => { abbr >= 'mst' }, # extra hash
+    );
 
 =cut
 
 # Override to remove empty arrays from args.
 # t/14postgres-parser breaks without this.
 around BUILDARGS => sub {
-  my $orig = shift;
-  my $self = shift;
-  my $args = $self->$orig(@_);
+    my $orig = shift;
+    my $self = shift;
+    my $args = $self->$orig(@_);
 
-  foreach my $arg (keys %{$args}) {
-    delete $args->{$arg}
-        if ref($args->{$arg}) eq "ARRAY" && !@{ $args->{$arg} };
-  }
-  return $args;
+    foreach my $arg (keys %{$args}) {
+        delete $args->{$arg}
+            if ref($args->{$arg}) eq "ARRAY" && !@{ $args->{$arg} };
+    }
+    return $args;
 };
 
 
@@ -88,15 +88,15 @@ around BUILDARGS => sub {
 
 Determine whether the sequence is valid or not.
 
-  my $ok = $sequence->is_valid;
+    my $ok = $sequence->is_valid;
 
 =cut
 
 sub is_valid {
-  my ($self) = @_;
-  my $name = $self->name or return $self->error('No name');
+    my ($self) = @_;
+    my $name = $self->name or return $self->error('No name');
 
-  return 1;
+    return 1;
 }
 
 
@@ -104,7 +104,7 @@ sub is_valid {
 
 Get or set the Sequence's schema object.
 
-  my $schema = $sequence->schema;
+    my $schema = $sequence->schema;
 
 =cut
 
@@ -117,14 +117,14 @@ around schema => \&ex2err;
 
 Get or set the sequence's order.
 
-  my $order = $order->order(3);
+    my $order = $order->order(3);
 
 =cut
 
 has order => (
-  is => 'rw',
-  isa => quote_sub( q{ die unless $_[0] =~ m/^[[:digit:]]{0,}$/msx; } ),
-  default => quote_sub( q{0} ),
+    is => 'rw',
+    isa => quote_sub( q{ die unless $_[0] =~ m/^[[:digit:]]{0,}$/msx; } ),
+    default => quote_sub( q{0} ),
 );
 
 
@@ -132,15 +132,15 @@ has order => (
 
 Get or set the sequence's name.
 
-  my $name = $sequence->name('foo');
+    my $name = $sequence->name('foo');
 
 =cut
 
 has name => (is => 'rw', default => quote_sub(q{ '' }));
 
 around name => sub {
-  my ($orig, $self, $arg) = @_;
-  $self->$orig($arg || ());
+    my ($orig, $self, $arg) = @_;
+    $self->$orig($arg || ());
 };
 
 
@@ -150,16 +150,16 @@ Get or set if sequence is temporary, i.e. it lasts only the current session. Boo
 
 In Oracle, this attribute is called "SESSION" (the opposite being "GLOBAL".
 
-  my $sequence = $sequence->temporary(1);
-  my $sequence = $sequence->temporary(0);
-  my $sequence = $sequence->temporary();
+    my $sequence = $sequence->temporary(1);
+    my $sequence = $sequence->temporary(0);
+    my $sequence = $sequence->temporary();
 
 =cut
 
 has temporary => (
-  is => 'rw',
-  isa => quote_sub( q{ die unless $_[0] =~ m/^(?: 0|1|)$/msx; }),
-  default => quote_sub( q{0} ),
+    is => 'rw',
+    isa => quote_sub( q{ die unless $_[0] =~ m/^(?: 0|1|)$/msx; }),
+    default => quote_sub( q{0} ),
 );
 
 around temporary => \&ex2err;
@@ -169,15 +169,15 @@ around temporary => \&ex2err;
 
 Get or set the sequence's data_type.
 
-  my $data_type = $sequence->data_type('foo');
+    my $data_type = $sequence->data_type('foo');
 
 =cut
 
 has data_type => (is => 'rw', default => quote_sub(q{ '' }));
 
 around data_type => sub {
-  my ($orig, $self, $arg) = @_;
-  $self->$orig($arg || ());
+    my ($orig, $self, $arg) = @_;
+    $self->$orig($arg || ());
 };
 
 
@@ -185,14 +185,14 @@ around data_type => sub {
 
 Get or set the increment size.
 
-  my $sequence = $sequence->increment(1);
+    my $sequence = $sequence->increment(1);
 
 =cut
 
 has increment => (
-  is => 'rw',
-  isa => quote_sub( q{ die unless $_[0] =~ m/^[[:digit:]]{1,}$/msx; }),
-  default => quote_sub( q{0} ),
+    is => 'rw',
+    isa => quote_sub( q{ die unless $_[0] =~ m/^[[:digit:]]{1,}$/msx; }),
+    default => quote_sub( q{0} ),
 );
 
 around increment => \&ex2err;
@@ -202,14 +202,14 @@ around increment => \&ex2err;
 
 Get or set the start value.
 
-  my $sequence = $sequence->start(1);
+    my $sequence = $sequence->start(1);
 
 =cut
 
 has start => (
-  is => 'rw',
-  isa => quote_sub( q{ die unless $_[0] =~ m/^[[:digit:]]{1,}$/msx; }),
-  default => quote_sub( q{0} ),
+    is => 'rw',
+    isa => quote_sub( q{ die unless $_[0] =~ m/^[[:digit:]]{1,}$/msx; }),
+    default => quote_sub( q{0} ),
 );
 
 around start => \&ex2err;
@@ -219,14 +219,14 @@ around start => \&ex2err;
 
 Get or set the maxvalue.
 
-  my $sequence = $sequence->maxvalue(1);
+    my $sequence = $sequence->maxvalue(1);
 
 =cut
 
 has maxvalue => (
-  is => 'rw',
-  isa => quote_sub( q{ die unless $_[0] =~ m/^[[:digit:]]{1,}$/msx; }),
-  default => quote_sub( q{0} ),
+    is => 'rw',
+    isa => quote_sub( q{ die unless $_[0] =~ m/^[[:digit:]]{1,}$/msx; }),
+    default => quote_sub( q{0} ),
 );
 
 around maxvalue => \&ex2err;
@@ -236,14 +236,14 @@ around maxvalue => \&ex2err;
 
 Get or set the minvalue.
 
-  my $sequence = $sequence->minvalue(1);
+    my $sequence = $sequence->minvalue(1);
 
 =cut
 
 has minvalue => (
-  is => 'rw',
-  isa => quote_sub( q{ die unless $_[0] =~ m/^[[:digit:]]{1,}$/msx; }),
-  default => quote_sub( q{0} ),
+    is => 'rw',
+    isa => quote_sub( q{ die unless $_[0] =~ m/^[[:digit:]]{1,}$/msx; }),
+    default => quote_sub( q{0} ),
 );
 
 around minvalue => \&ex2err;
@@ -253,16 +253,16 @@ around minvalue => \&ex2err;
 
 Get or set if sequence can cycle values. Boolean.
 
-  my $sequence = $sequence->cycle(1);
-  my $sequence = $sequence->cycle(0);
-  my $sequence = $sequence->cycle();
+    my $sequence = $sequence->cycle(1);
+    my $sequence = $sequence->cycle(0);
+    my $sequence = $sequence->cycle();
 
 =cut
 
 has cycle => (
-  is => 'rw',
-  isa => quote_sub( q{ die unless $_[0] =~ m/^(?: 0|1|)$/msx; }),
-  default => quote_sub( q{0} ),
+    is => 'rw',
+    isa => quote_sub( q{ die unless $_[0] =~ m/^(?: 0|1|)$/msx; }),
+    default => quote_sub( q{0} ),
 );
 
 around cycle => \&ex2err;
@@ -272,14 +272,14 @@ around cycle => \&ex2err;
 
 Get or set the cache size.
 
-  my $sequence = $sequence->cache(1);
+    my $sequence = $sequence->cache(1);
 
 =cut
 
 has cache => (
-  is => 'rw',
-  isa => quote_sub( q{ die unless $_[0] =~ m/^[[:digit:]]{1,}$/msx; }),
-  default => quote_sub( q{0} ),
+    is => 'rw',
+    isa => quote_sub( q{ die unless $_[0] =~ m/^[[:digit:]]{1,}$/msx; }),
+    default => quote_sub( q{0} ),
 );
 
 around cache => \&ex2err;
@@ -289,16 +289,16 @@ around cache => \&ex2err;
 
 Get or set if sequence creates values in guarantee_order. Boolean.
 
-  my $sequence = $sequence->guarantee_order(1);
-  my $sequence = $sequence->guarantee_order(0);
-  my $sequence = $sequence->guarantee_order();
+    my $sequence = $sequence->guarantee_order(1);
+    my $sequence = $sequence->guarantee_order(0);
+    my $sequence = $sequence->guarantee_order();
 
 =cut
 
 has guarantee_order => (
-  is => 'rw',
-  isa => quote_sub( q{ die unless $_[0] =~ m/^(?: 0|1|)$/msx; }),
-  default => quote_sub( q{0} ),
+    is => 'rw',
+    isa => quote_sub( q{ die unless $_[0] =~ m/^(?: 0|1|)$/msx; }),
+    default => quote_sub( q{0} ),
 );
 
 around guarantee_order => \&ex2err;
@@ -306,16 +306,20 @@ around guarantee_order => \&ex2err;
 
 =head2 owner
 
-Get or set the owner.
+Get or set the owner. String.
 
-  my $sequence = $sequence->owner('schema.table.column');
+    my $sequence = $sequence->owner('database.schema.table.column');
+    my $sequence = $sequence->owner('schema.]table.column');
+    my $sequence = $sequence->owner('table.column');
+    my $sequence = $sequence->owner('NONE');
+    my $sequence = $sequence->owner('');
 
 =cut
 
 has owner => (
-  is => 'rw',
-  isa => quote_sub( q{ die unless $_[0] =~ m/^[[:graph:]]{0,}$/msx; }),
-  default => quote_sub( q{0} ),
+    is => 'rw',
+    isa => quote_sub( q{ die unless $_[0] =~ m/^[[:graph:]]{0,}$/msx; }),
+    default => quote_sub( q{} ),
 );
 
 around owner => \&ex2err;
@@ -325,16 +329,16 @@ around owner => \&ex2err;
 
 Get or set if sequence keeps NEXTVAL during replay for Application Continuity (Oracle). Boolean.
 
-  my $sequence = $sequence->keep(1);
-  my $sequence = $sequence->keep(0);
-  my $sequence = $sequence->keep();
+    my $sequence = $sequence->keep(1);
+    my $sequence = $sequence->keep(0);
+    my $sequence = $sequence->keep();
 
 =cut
 
 has keep => (
-  is => 'rw',
-  isa => quote_sub( q{ die unless $_[0] =~ m/^(?: 0|1|)$/msx; }),
-  default => quote_sub( q{0} ),
+    is => 'rw',
+    isa => quote_sub( q{ die unless $_[0] =~ m/^(?: 0|1|)$/msx; }),
+    default => quote_sub( q{0} ),
 );
 
 around keep => \&ex2err;
@@ -347,33 +351,32 @@ set and it will accumulate the comments.  Called in an array context,
 returns each comment individually; called in a scalar context, returns
 all the comments joined on newlines.
 
-  $sequence->comments('foo');
-  $sequence->comments('bar');
-  print join( ', ', $sequence->comments ); # prints "foo, bar"
+    $sequence->comments('foo');
+    $sequence->comments('bar');
+    print join( ', ', $sequence->comments ); # prints "foo, bar"
 
 =cut
 
 has comments => (
-  is      => 'rw',
-  coerce  => quote_sub(q{ ref($_[0]) eq 'ARRAY' ? $_[0] : [$_[0]] }),
-  default => quote_sub(q{ [] }),
+    is      => 'rw',
+    coerce  => quote_sub(q{ ref($_[0]) eq 'ARRAY' ? $_[0] : [$_[0]] }),
+    default => quote_sub(q{ [] }),
 );
 
 around comments => sub {
-  my $orig     = shift;
-  my $self     = shift;
-  my @comments = ref $_[0] ? @{ $_[0] } : @_;
+    my $orig     = shift;
+    my $self     = shift;
+    my @comments = ref $_[0] ? @{ $_[0] } : @_;
 
-  for my $arg (@comments) {
-    $arg = $arg->[0] if ref $arg;
-    push @{ $self->$orig }, $arg if defined $arg && $arg;
-  }
+    for my $arg (@comments) {
+        $arg = $arg->[0] if ref $arg;
+        push @{ $self->$orig }, $arg if defined $arg && $arg;
+    }
 
-  @comments = @{ $self->$orig };
-  return
-        wantarray ? @comments
-      : @comments ? join("\n", @comments)
-      :             undef;
+    @comments = @{ $self->$orig };
+    return wantarray ? @comments
+            : @comments ? join("\n", @comments)
+            :             undef;
 };
 
 
