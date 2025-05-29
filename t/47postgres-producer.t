@@ -34,11 +34,11 @@ my $PRODUCER = \&SQL::Translator::Producer::PostgreSQL::create_field;
     comments         => [ "multi\nline", 'single line' ],
     extra            => { abbr => 'mst' }, # extra hash
   );
-  is($sequence->name, 'master');
+  is($sequence->name, 'master', 'Correct name');
   my ($create, $fks)
       = SQL::Translator::Producer::PostgreSQL::create_sequence($sequence,
         { quote_identifiers => 1, attach_comments => 1, }, );
-  my $expected = <<EOESQL;
+  my $expected = <<'EOESQL';
 --
 -- Sequence: master
 --
@@ -49,53 +49,54 @@ line
 single line';
 EOESQL
 
-  $expected =~ s/\n\z//;
-  is($create, $expected);
+  $expected =~ s/\n\z//msx;
+  is($create, $expected, 'SQL written right');
 }
 
 {
   my $sequence       =  SQL::Translator::Schema::Sequence->new(
     name             => 'service',      # name of the sequence
   );
-  is($sequence->name, 'service');
+  is($sequence->name, 'service', 'Correct name');
   my ($create, $fks)
       = SQL::Translator::Producer::PostgreSQL::create_sequence($sequence,
         { quote_identifiers => 1, , attach_comments => 0 });
-  my $expected = <<EOESQL;
+  my $expected = <<'EOESQL';
 --
 -- Sequence: service
 --
 CREATE SEQUENCE "service" NO MINVALUE NO MAXVALUE NO CYCLE OWNED BY NONE;
 EOESQL
 
-  $expected =~ s/\n\z//;
-  is($create, $expected);
+  $expected =~ s/\n\z//msx;
+  is($create, $expected, 'SQL written right');
 }
 
 {
   my $sequence       =  SQL::Translator::Schema::Sequence->new(
     name             => 'foo.bar',
     temporary        => 1,
+    data_type        => SQL::Translator::Schema::DataType->new( type => 'integer', size => 5 ),
     increment        => 2,
     owner            => 'foo.baz.qux',
     order            => 0,                    # Not used in Pg sequences.
     comments         => [ 'Sequence tied to column qux in table foo.baz' ],
   );
-  is($sequence->name, 'foo.bar');
+  is($sequence->name, 'foo.bar', 'Correct name');
   my ($create, $fks)
       = SQL::Translator::Producer::PostgreSQL::create_sequence($sequence,
         { attach_comments => 1, }, );
-  my $expected = <<EOESQL;
+  my $expected = <<'EOESQL';
 --
 -- Sequence: foo.bar
 --
-CREATE TEMPORARY SEQUENCE foo.bar INCREMENT BY 2 NO MINVALUE NO MAXVALUE NO CYCLE OWNED BY foo.baz.qux;
+CREATE TEMPORARY SEQUENCE foo.bar AS smallint INCREMENT BY 2 NO MINVALUE NO MAXVALUE NO CYCLE OWNED BY foo.baz.qux;
 
 COMMENT on SEQUENCE foo.bar IS 'Sequence tied to column qux in table foo.baz';
 EOESQL
 
-  $expected =~ s/\n\z//;
-  is($create, $expected);
+  $expected =~ s/\n\z//msx;
+  is($create, $expected, 'SQL written right');
 }
 
 {

@@ -610,14 +610,13 @@ sub get_sequences {
 Returns all the sequences as an array or array reference.
 
   my @sequences = $schema->get_sequences;
+  my $sequences = $schema->get_sequences;
 
 =cut
 
   my $self      = shift;
-  my @sequences = map { $_->[1] }
-      sort { $a->[0] <=> $b->[0] }
-      map { [ $_->order, $_ ] } values %{ $self->_sequences };
-
+  my @seqs = map { $_ } values %{ $self->_sequences };
+  my @sequences = sort { $a->order <=> $b->order } @seqs;
   if (@sequences) {
     return wantarray ? @sequences : \@sequences;
   } else {

@@ -17,6 +17,17 @@ SQL::Translator::Parser::PostgreSQL - parser for PostgreSQL
 The grammar was started from the MySQL parsers.  Here is the description
 from PostgreSQL, truncated to what's currently supported (patches welcome, of course) :
 
+Sequence:
+(https://www.postgresql.org/docs/sql-createsequence.html)
+
+  CREATE [ { TEMPORARY | TEMP } | UNLOGGED ] SEQUENCE [ IF NOT EXISTS ] name
+    [ AS data_type ]
+    [ INCREMENT [ BY ] increment ]
+    [ MINVALUE minvalue | NO MINVALUE ] [ MAXVALUE maxvalue | NO MAXVALUE ]
+    [ START [ WITH ] start ] [ CACHE cache ] [ [ NO ] CYCLE ]
+    [ OWNED BY { table_name.column_name | NONE } ]
+
+
 Table:
 (http://www.postgresql.org/docs/current/sql-createtable.html)
 
@@ -95,13 +106,15 @@ $DEBUG = 0 unless defined $DEBUG;
 
 use Data::Dumper;
 use SQL::Translator::Utils qw/ddl_parser_instance/;
+use SQL::Translator::Schema::Sequence;
+use SQL::Translator::Schema::DataType;
 
 use base qw(Exporter);
 our @EXPORT_OK = qw(parse);
 
 our $GRAMMAR = <<'END_OF_GRAMMAR';
 
-{ my ( %tables, @views, @triggers, $table_order, $field_order, @table_comments) }
+{ my (%sequences, %tables, @views, @triggers, $table_order, $field_order, @table_comments) }
 
 #
 # The "eofile" rule makes the parser fail if any "statement" rule
@@ -111,6 +124,7 @@ our $GRAMMAR = <<'END_OF_GRAMMAR';
 #
 startrule : statement(s) eofile {
     {
+        sequences => \%sequences,
         tables => \%tables,
         views => \@views,
         triggers => \@triggers,
@@ -120,6 +134,8 @@ startrule : statement(s) eofile {
 eofile : /^\Z/
 
 statement : create
+  | seq_create
+  | comment_on_sequence
   | comment_on_table
   | comment_on_column
   | comment_on_other
@@ -308,6 +324,174 @@ create : CREATE /TRIGGER/i trigger_name before_or_after database_events /ON/i ta
 #
 # Create anything else (e.g., domain, etc.)
 #
+
+#
+# Sequence
+#
+
+sequence_id : NAME(s /\./)
+    {
+        my @ids = @{ $item[1] };
+        my $column_id = { sequence_name => $ids[ $#ids ] };
+        $column_id->{'schema_name'} = $ids[ $#ids - 2] if ($#ids - 2 >= 0);
+        $column_id->{'database_name'} = $ids[ $#ids - 3] if ($#ids - 3 >= 0);
+        $return = $column_id;
+    }
+
+seq_sequence : /sequence/i
+
+sequence_name : NAME
+
+seq_owner_name : /.+/
+
+seq_create : /CREATE/i
+
+cycle_amount : /.+/
+
+cycle : /CYCLE/i cycle_amount
+
+seq_temporary : /temp(orary)?\b/i
+  { 'temporary' }
+seq_unlogged : /unlogged?\b/i
+  { 'unlogged' }
+seq_permanence : (seq_temporary | seq_unlogged)
+    {
+        $return = $item[1];
+    }
+
+seq_if_not_exists : /IF NOT EXISTS/i
+  { 'if_not_exists' }
+
+
+AS : /AS\b/i
+WITH : /WITH\b/i
+NO : /NO\b/i
+CYCLE : /CYCLE\b/i
+BY : /BY\b/i
+INCREMENT : /INCREMENT\b/i
+MINVALUE : /MINVALUE\b/i
+MAXVALUE : /MAXVALUE\b/i
+OWNED : /owned\b/i
+BY : /by\b/i
+digits : /\d+/
+seq_option_data_type : AS pg_data_type
+  {
+    $return = {
+      data_type => $item{pg_data_type},
+    }
+  }
+seq_option_increment : INCREMENT BY(?) digits 
+  {
+    $return = {
+      increment => {
+        value => 0+$item[3],
+      }
+    }
+  }
+seq_option_minvalue : NO(?) MINVALUE digits(?)
+  {
+    my $minvalue = { };
+    $minvalue->{'active'} = (defined $item[1][0]) ? 0 : 1;
+    $minvalue->{'value'} = 0+$item[3][0] if (defined $item[3][0]);
+    if( $minvalue->{'active'} == 0 && defined $minvalue->{'value'} ) {
+      die "Cannot define both '$item[1][0] $item[2]' and '$item[2] $item[3][0]'";
+    }
+    $return = {
+      minvalue => $minvalue,
+    }
+  }
+seq_option_maxvalue : NO(?) MAXVALUE digits(?)
+  {
+    my $maxvalue = { };
+    $maxvalue->{'active'} = (defined $item[1][0]) ? 0 : 1;
+    $maxvalue->{'value'} = 0+$item[3][0] if (defined $item[3][0]);
+    if( $maxvalue->{'active'} == 0 && defined $maxvalue->{'value'} ) {
+      die "Cannot define both '$item[1][0] $item[2]' and '$item[2] $item[3][0]'";
+    }
+    $return = {
+      maxvalue => $maxvalue,
+    }
+  }
+seq_option_start : /START\b/i WITH(?) digits 
+  {
+    $return = {
+      start => {
+        value => 0+$item[3],
+      }
+    }
+  }
+seq_option_cache : /CACHE/i digits 
+  {
+    $return = {
+      cache => {
+        value => 0+$item[2],
+      }
+    }
+  }
+seq_option_cycle : NO(?) CYCLE
+  {
+    $return = {
+      cycle => {
+        active => (defined $item[1][0]) ? 0 : 1,
+      }
+    }
+  }
+seq_option_owned_by : OWNED BY column_id
+  {
+    my $owned_by = { };
+    my $owned_by->{'value'} = $item[3];
+    $return = {
+      owned_by => $owned_by,
+    }
+  }
+seq_option :
+    seq_option_data_type
+    | seq_option_increment
+    | seq_option_minvalue
+    | seq_option_maxvalue
+    | seq_option_start
+    | seq_option_cache
+    | seq_option_cycle
+    | seq_option_owned_by
+
+create : seq_create seq_permanence(?) seq_sequence seq_if_not_exists(?) sequence_name seq_option(s?) ';'
+    {
+        my $permanence = $item{'seq_permanence(?)'}[0];
+        my $options = $item{'seq_options(?)'}[0];
+
+        my $name = $item{sequence_name};
+        my %sequence = (
+            name => $item{sequence_name},
+            order => scalar %sequences,
+        );
+        $sequence{$permanence} = 1 if( $permanence );
+        for my $option (@{ $item{'seq_option(s?)'} }) {
+            if ( exists $option->{'data_type'} ) {
+                my $data_type = SQL::Translator::Schema::DataType->new( %{ $option->{'data_type'} } );
+                $sequence{'data_type'} = $data_type;
+            }
+            $sequence{'increment'} = $option->{'increment'}->{'value'} if ( exists $option->{'increment'} );
+            $sequence{'minvalue'} = $option->{'minvalue'}->{'value'} if( exists $option->{'minvalue'} && $option->{'minvalue'}->{'active'} );
+            $sequence{'maxvalue'} = $option->{'maxvalue'}->{'value'} if( exists $option->{'maxvalue'} && $option->{'maxvalue'}->{'active'} );
+            $sequence{'start'} = $option->{'start'}->{'value'} if( exists $option->{'start'} );
+            $sequence{'cache'} = $option->{'cache'}->{'value'} if( exists $option->{'cache'} );
+            $sequence{'cycle'} = 1 if( exists $option->{'cycle'} && $option->{'cycle'}->{'active'} );
+            if( exists $option->{'owned_by'} ) {
+                my $value = $option->{'owned_by'}->{'value'};
+                my $owner = $value->{'table_name'} . q{.} . $value->{'column_name'};
+                $owner = $value->{'schema_name'} . q{.} . $owner if( exists $value->{'schema_name'} );
+                $owner = $value->{'database_name'} . q{.} . $owner if( exists $value->{'database_name'} );
+                $sequence{'owner'} = $owner;
+            }
+        }
+
+        if ( @table_comments ) {
+            push @{ $sequence{comments} }, @table_comments;
+            @table_comments = ();
+        }
+        $sequences{$name} = \%sequence;
+    }
+
 create : CREATE WORD /[^;]+/ ';'
     { @table_comments = (); }
 
@@ -331,6 +515,22 @@ comment : /^\s*(?:#|-{2})(.*)\n/
         $comment    =~ s/\s*$//;
         $return     = $comment;
         push @table_comments, $comment;
+    }
+
+seq_comment_on : /COMMENT/i /ON/i /SEQUENCE/i
+
+comment_on_sequence : /comment/i /on/i /sequence/i sequence_name /is/i comment_phrase ';'
+    {
+
+        my $sequence_id = { schema_name => 'default', sequence_name => $item{'sequence_name'} };
+        my $schema_name = $sequence_id->{'schema_name'};
+        my $sequence_name = $sequence_id->{'sequence_name'};
+        if ( $sequences{ $sequence_name } ) {
+          push @{ $sequences{ $sequence_name }{'comments'} }, $item{'comment_phrase'};
+        }
+        else {
+           die "No such sequence as '$sequence_id'";
+        }
     }
 
 comment_on_table : /comment/i /on/i /table/i table_id /is/i comment_phrase ';'
@@ -493,6 +693,16 @@ column_constraint_type : /not null/i { $return = { type => 'not_null' } }
             on_delete        => $on_delete,
             on_update        => $on_update,
         }
+    }
+
+column_id : NAME(s /\./)
+    {
+        my @ids = @{ $item[1] };
+        my $column_id = { column_name => $ids[ $#ids ] };
+        $column_id->{'table_name'} = $ids[ $#ids - 1] if ($#ids - 1 >= 0);
+        $column_id->{'schema_name'} = $ids[ $#ids - 2] if ($#ids - 2 >= 0);
+        $column_id->{'database_name'} = $ids[ $#ids - 3] if ($#ids - 3 >= 0);
+        $return = $column_id;
     }
 
 table_id : schema_qualification(?) NAME {
@@ -842,8 +1052,8 @@ alter : alter_table table_id DROP /constraint/i NAME restrict_or_cascade ';'
 alter : alter_table table_id /owner/i /to/i NAME ';'
     { 1 }
 
-alter : alter_sequence NAME /owned/i /by/i column_name ';'
-    { 1 }
+# alter : alter_sequence NAME /owned/i /by/i column_name ';'
+#     { 1 }
 
 storage_type : /(plain|external|extended|main)/i
 
@@ -919,7 +1129,7 @@ add_column : ADD COLUMN(?)
 
 alter_table : ALTER TABLE ONLY(?)
 
-alter_sequence : ALTER SEQUENCE
+# alter_sequence : ALTER SEQUENCE
 
 drop_column : DROP COLUMN(?)
 
@@ -1019,8 +1229,6 @@ SCHEMA : /schema/i
 
 SEMICOLON : /\s*;\n?/
 
-SEQUENCE : /sequence/i
-
 SELECT : /select/i
 
 COPY : /copy/i
@@ -1076,6 +1284,25 @@ sub parse {
   warn Dumper($result) if $DEBUG;
 
   my $schema = $translator->schema;
+  my @seqs = map { $_ } values %{ $result->{sequences} };
+  my @sequences = sort { $a->{order} <=> $b->{order} } @seqs;
+  for my $sequence (@sequences) {
+    # Apply PostgreSQL database's default values!
+    # Because the default values are database specific,
+    # they cannot be set in the Schema class Sequence.
+    my $data_type = SQL::Translator::Schema::DataType->new(type => 'integer', size => 20);
+    $sequence->{temporary} //= 0; # Boolean
+    $sequence->{data_type} //= $data_type; # q{bigint};
+    $sequence->{increment} //= 1;
+    $sequence->{minvalue} //= 1; # Same as NO MINVALUE
+    $sequence->{maxvalue} //= 0; # Same as NO MAXVALUE
+    $sequence->{start} //= 1;
+    $sequence->{cache} //= 1;
+    $sequence->{cycle} //= 0; # Boolean, Same as NO CYCLE
+    $sequence->{owner} //= q{NONE};
+    $schema->add_sequence( %{ $sequence } );
+  }
+
   my @tables = sort { ($result->{tables}{$a}{'order'} || 0) <=> ($result->{tables}{$b}{'order'} || 0) }
       keys %{ $result->{tables} };
 
@@ -1175,6 +1402,27 @@ sub parse {
 
   return 1;
 }
+
+# Apply PostgreSQL database's default values!
+# Because the default values are database specific,
+# they cannot be set in the Schema class Sequence.
+sub create_sequence {
+  my ($class, %data) = @_;
+
+  my $data_type = SQL::Translator::Schema::DataType->new(type => 'integer', size => 20);
+  $data{temporary} //= 0; # Boolean
+  $data{unlogged} //= 0; # Boolean
+  $data{data_type} //= $data_type; # q{bigint};
+  $data{increment} //= 1;
+  $data{minvalue} //= 1; # Same as NO MINVALUE
+  $data{maxvalue} //= 0; # Same as NO MAXVALUE
+  $data{start} //= 1;
+  $data{cache} //= 1;
+  $data{cycle} //= 0; # Boolean, Same as NO CYCLE
+  $data{owner} //= q{NONE};
+
+  return SQL::Translator::Schema::Sequence->new( %data );
+};
 
 1;
 

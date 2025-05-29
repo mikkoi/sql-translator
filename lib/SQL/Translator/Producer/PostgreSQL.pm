@@ -425,7 +425,7 @@ sub create_sequence {
   my $temporary = $sequence->temporary ? 'TEMPORARY ' : q{};
   my $if_not_exists = $add_if_not_exists ? 'IF NOT EXISTS ' : q{};
   $create_statement .= "CREATE ${temporary}SEQUENCE ${if_not_exists}${sequence_name_qt}";
-  $create_statement .= ' AS '.$sequence->data_type if $sequence->data_type;
+  $create_statement .= ' AS ' . convert_datatype_simple($sequence->data_type) if $sequence->data_type;
   $create_statement .= ' INCREMENT BY '.$sequence->increment if $sequence->increment;
   $create_statement .= $sequence->minvalue ? ' MINVALUE '.$sequence->minvalue : ' NO MINVALUE';
   $create_statement .= $sequence->maxvalue ? ' MAXVALUE '.$sequence->maxvalue : ' NO MAXVALUE';
@@ -900,6 +900,29 @@ sub create_trigger {
       );
 
   return @statements;
+}
+
+sub convert_datatype_simple {
+  my ($field) = @_;
+
+  my @size      = $field->size;
+  my $data_type = lc $field->type;
+
+  if ($data_type eq 'integer') {
+    if (defined $size[0] && $size[0] > 0) {
+      if ($size[0] > 10) {
+        $data_type = 'bigint';
+      } elsif ($size[0] <= 5) {
+        $data_type = 'smallint';
+      } else {
+        $data_type = 'integer';
+      }
+    } else {
+      $data_type = 'integer';
+    }
+  }
+
+  return $data_type;
 }
 
 sub convert_datatype {

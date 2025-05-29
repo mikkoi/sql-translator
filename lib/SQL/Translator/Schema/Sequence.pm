@@ -37,6 +37,7 @@ use Moo;
 use SQL::Translator::Utils qw(ex2err throw);
 use Sub::Quote             qw(quote_sub);
 use SQL::Translator::Types qw(schema_obj);
+use SQL::Translator::Schema::DataType;
 
 extends 'SQL::Translator::Schema::Object';
 
@@ -165,15 +166,54 @@ has temporary => (
 around temporary => \&ex2err;
 
 
-=head2 data_type
+=head2 unlogged
 
-Get or set the sequence's data_type.
+Get or set if sequence is unlogged. Boolean.
 
-    my $data_type = $sequence->data_type('foo');
+This attribute present only in PostgeSQL.
+
+    my $sequence = $sequence->unlogged(1);
+    my $sequence = $sequence->unlogged(0);
+    my $sequence = $sequence->unlogged();
 
 =cut
 
-has data_type => (is => 'rw', default => quote_sub(q{ '' }));
+has unlogged => (
+    is => 'rw',
+    isa => quote_sub( q{ die unless $_[0] =~ m/^(?: 0|1|)$/msx; }),
+    default => quote_sub( q{0} ),
+);
+
+around unlogged => \&ex2err;
+
+
+=head2 data_type
+
+Get or set the sequence's data type.
+Data type is a hash because some data types
+consist of several defining elements, for instance,
+character and length, numeric and decimal precision
+or timestamp with or without timezone.
+Data type has to be expressed precisely so that it can be
+interpreted differently for each database.
+There are differences, for instance, in what is the size
+of "bigint" or "long".
+Some databases, for example, Oracle, do not support defining
+the data type for sequences.
+
+    # my $data_type = $sequence->data_type({ type => 'integer', size => 20,});
+    # my $data_type = $sequence->data_type({ type => 'text', });
+    # my $data_type = $sequence->data_type({ type => 'polygon', });
+    my $data_type = $sequence->data_type(
+        SQL::Translator::Schema::DataType->new(type => 'integer', size => 20,)
+    );
+
+=cut
+
+has data_type => (
+  is => 'rw',
+  # default => quote_sub(q{ new SQL::Translator::Schema::DataType->new(data_type => 'integer', size => 20) })
+);
 
 around data_type => sub {
     my ($orig, $self, $arg) = @_;
@@ -309,7 +349,7 @@ around guarantee_order => \&ex2err;
 Get or set the owner. String.
 
     my $sequence = $sequence->owner('database.schema.table.column');
-    my $sequence = $sequence->owner('schema.]table.column');
+    my $sequence = $sequence->owner('schema.table.column');
     my $sequence = $sequence->owner('table.column');
     my $sequence = $sequence->owner('NONE');
     my $sequence = $sequence->owner('');
@@ -319,7 +359,7 @@ Get or set the owner. String.
 has owner => (
     is => 'rw',
     isa => quote_sub( q{ die unless $_[0] =~ m/^[[:graph:]]{0,}$/msx; }),
-    default => quote_sub( q{} ),
+    default => quote_sub( q{ 'NONE' } ),
 );
 
 around owner => \&ex2err;
@@ -382,38 +422,88 @@ around comments => sub {
 
 =head2 equals
 
-Determines if this constraint is the same as another
+Determines if this sequence is the same as another
 
-  my $isIdentical = $constraint1->equals( $constraint2 );
+    my $isIdentical = $sequence1->equals( $sequence2 );
 
 =cut
 
 around equals => sub {
-  my $orig                    = shift;
-  my $self                    = shift;
-  my $other                   = shift;
-  my $case_insensitive        = shift;
+    my $orig                    = shift;
+    my $self                    = shift;
+    my $other                   = shift;
+    my $case_insensitive        = shift;
 
-  return 0
-      unless $case_insensitive
-      ? uc($self->name) eq uc($other->name)
-      : $self->name eq $other->name;
+    return 0 unless $self->SUPER::equals($other);
+    return 0
+        unless $case_insensitive
+            ? uc($self->name) eq uc($other->name)
+            : $self->name eq $other->name;
 
-  return 0 unless $self->order eq $other->order;
-  return 0 unless $self->increment eq $other->increment;
-  return 0 unless $self->maxvalue eq $other->maxvalue;
-  return 0 unless $self->minvalue eq $other->minvalue;
-  return 0 unless $self->start eq $other->start;
-  return 0 unless $self->cycle eq $other->cycle;
-  return 0 unless $self->cache eq $other->cache;
+    return 0 unless $self->order eq $other->order;
+    return 0 unless $self->temporary eq $other->temporary;
+    return 0 unless $self->unlogged eq $other->unlogged;
+    # return 0 unless $self->data_type eq $other->data_type;
+    return 0 unless $self->increment eq $other->increment;
+    return 0 unless $self->minvalue eq $other->minvalue;
+    return 0 unless $self->maxvalue eq $other->maxvalue;
+    return 0 unless $self->start eq $other->start;
+    return 0 unless $self->cache eq $other->cache;
+    return 0 unless $self->cycle eq $other->cycle;
+    # return 0 unless $self->owner eq $other->owner;
+    return 0 unless $self->guarantee_order eq $other->guarantee_order;
+    return 0 unless $self->keep eq $other->keep;
 
-  # TODO check extra and comments
+    return 0
+        unless $self->_compare_objects(scalar $self->data_type, scalar $other->data_type);
 
-  return 1;
+    return 0
+        unless $self->_compare_objects(scalar $self->owner, scalar $other->owner);
+
+    return 0
+        unless $self->_compare_objects(scalar $self->comments, scalar $other->comments);
+
+    return 0
+        unless $self->_compare_objects(scalar $self->extra, scalar $other->extra);
+
+    return 1;
 };
 
 # Must come after all 'has' declarations
 around new => \&ex2err;
+
+
+=head2 data
+
+Return a hash containing all data.
+The values, including deep values, are copied.
+
+    my $data = $sequence->data;
+
+=cut
+
+sub data {
+    my ($self) = @_;
+
+    my %data;
+    $data{name} = $self->name;
+    $data{order} = $self->order;
+    $data{temporary} = $self->temporary;
+    $data{unlogged} = $self->unlogged;
+    $data{data_type} = $self->data_type;
+    $data{increment} = $self->increment;
+    $data{minvalue} = $self->minvalue;
+    $data{maxvalue} = $self->maxvalue;
+    $data{start} = $self->start;
+    $data{cache} = $self->cache;
+    $data{cycle} = $self->cycle;
+    $data{owner} = $self->owner;
+    $data{guarantee_order} = $self->guarantee_order;
+    $data{keep} = $self->keep;
+    $data{comments} = [ $self->comments ];
+
+    return \%data;
+}
 
 1;
 
