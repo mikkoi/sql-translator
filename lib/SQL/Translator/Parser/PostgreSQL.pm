@@ -380,7 +380,7 @@ seq_option_data_type : AS pg_data_type
       data_type => $item{pg_data_type},
     }
   }
-seq_option_increment : INCREMENT BY(?) digits 
+seq_option_increment : INCREMENT BY(?) digits
   {
     $return = {
       increment => {
@@ -412,7 +412,7 @@ seq_option_maxvalue : NO(?) MAXVALUE digits(?)
       maxvalue => $maxvalue,
     }
   }
-seq_option_start : /START\b/i WITH(?) digits 
+seq_option_start : /START\b/i WITH(?) digits
   {
     $return = {
       start => {
@@ -420,7 +420,7 @@ seq_option_start : /START\b/i WITH(?) digits
       }
     }
   }
-seq_option_cache : /CACHE/i digits 
+seq_option_cache : /CACHE/i digits
   {
     $return = {
       cache => {
