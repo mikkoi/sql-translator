@@ -798,9 +798,10 @@ my $view1 = SQL::Translator::Schema::View->new(
 my $create_opts = { add_replace_view => 1, no_comments => 1 };
 my $view1_sql1  = SQL::Translator::Producer::PostgreSQL::create_view($view1, $create_opts);
 
-my $view_sql_replace = "CREATE VIEW view_foo ( id, name ) AS
+my $view_sql_replace = <<'EOESQL';
+CREATE VIEW view_foo ( id, name ) AS
     SELECT id, name FROM thing
-";
+EOESQL
 is($view1_sql1, $view_sql_replace, 'correct "CREATE OR REPLACE VIEW" SQL');
 
 my $view2 = SQL::Translator::Schema::View->new(
@@ -817,6 +818,7 @@ my $view2_sql1   = SQL::Translator::Producer::PostgreSQL::create_view($view2, $c
 my $view2_sql_replace = "CREATE TEMPORARY VIEW view_foo2 AS
     SELECT id, name FROM thing
  WITH CASCADED CHECK OPTION";
+
 is($view2_sql1, $view2_sql_replace, 'correct "CREATE OR REPLACE VIEW" SQL 2');
 
 {
@@ -936,20 +938,22 @@ is($view2_sql1, $view2_sql_replace, 'correct "CREATE OR REPLACE VIEW" SQL 2');
 my $drop_view_opts1        = { add_drop_view => 1, no_comments => 1, postgres_version => 8.001 };
 my $drop_view_8_1_produced = SQL::Translator::Producer::PostgreSQL::create_view($view1, $drop_view_opts1);
 
-my $drop_view_8_1_expected = "DROP VIEW view_foo;
+my $drop_view_8_1_expected = <<'EOESQL';
+DROP VIEW view_foo;
 CREATE VIEW view_foo ( id, name ) AS
     SELECT id, name FROM thing
-";
+EOESQL
 
 is($drop_view_8_1_produced, $drop_view_8_1_expected, "My DROP VIEW statement for 8.1 is correct");
 
 my $drop_view_opts2        = { add_drop_view => 1, no_comments => 1, postgres_version => 9.001 };
 my $drop_view_9_1_produced = SQL::Translator::Producer::PostgreSQL::create_view($view1, $drop_view_opts2);
 
-my $drop_view_9_1_expected = "DROP VIEW IF EXISTS view_foo;
+my $drop_view_9_1_expected = <<'EOESQL';
+DROP VIEW IF EXISTS view_foo;
 CREATE VIEW view_foo ( id, name ) AS
     SELECT id, name FROM thing
-";
+EOESQL
 
 is($drop_view_9_1_produced, $drop_view_9_1_expected, "My DROP VIEW statement for 9.1 is correct");
 
@@ -964,9 +968,10 @@ my $mat_view = SQL::Translator::Schema::View->new(
 
 my $mat_view_sql = SQL::Translator::Producer::PostgreSQL::create_view($mat_view, { no_comments => 1 });
 
-my $mat_view_sql_expected = "CREATE MATERIALIZED VIEW view_foo ( id, name ) AS
+my $mat_view_sql_expected = <<'EOESQL';
+CREATE MATERIALIZED VIEW view_foo ( id, name ) AS
     SELECT id, name FROM thing
-";
+EOESQL
 
 is($mat_view_sql, $mat_view_sql_expected, 'correct "MATERIALIZED VIEW" SQL');
 done_testing;
