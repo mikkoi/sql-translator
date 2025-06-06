@@ -235,11 +235,13 @@ sub produce {
   my $translator = shift;
   local $DEBUG = $translator->debug;
   local $WARN  = $translator->show_warnings;
-  my $no_comments      = $translator->no_comments;
-  my $add_drop_table   = $translator->add_drop_table;
-  my $schema           = $translator->schema;
-  my $pargs            = $translator->producer_args;
-  my $postgres_version = parse_dbms_version($pargs->{postgres_version}, 'perl');
+
+  my $no_comments       = $translator->no_comments;
+  my $add_drop_sequence = $translator->add_drop_sequence;
+  my $add_drop_table    = $translator->add_drop_table;
+  my $schema            = $translator->schema;
+  my $pargs             = $translator->producer_args;
+  my $postgres_version  = parse_dbms_version($pargs->{postgres_version}, 'perl');
 
   my $generator = _generator({ quote_identifiers => $translator->quote_identifiers });
 
@@ -252,12 +254,11 @@ sub produce {
     my ($sequence_def, $fks) = create_sequence(
       $sequence,
       {
-        generator        => $generator,
-        no_comments      => $no_comments,
-        postgres_version => $postgres_version,
-        # add_drop_sequence   => $add_drop_sequence,
-        # type_defs        => \%type_defs,
-        attach_comments  => $pargs->{attach_comments}
+        generator         => $generator,
+        no_comments       => $no_comments,
+        postgres_version  => $postgres_version,
+        add_drop_sequence => $add_drop_sequence,
+        attach_comments   => $pargs->{attach_comments}
       }
     );
 
@@ -415,7 +416,7 @@ sub create_sequence {
 
   if ($add_drop_sequence) {
     if ($postgres_version >= PG_V_DROP_IF_EXISTS) {
-      $create_statement .= "DROP SEQUENCE IF EXISTS $sequence_name_qt CASCADE RESTRICT";
+      $create_statement .= "DROP SEQUENCE IF EXISTS $sequence_name_qt CASCADE";
     } else {
       $create_statement .= "DROP SEQUENCE $sequence_name_qt CASCADE";
     }
@@ -1258,6 +1259,14 @@ sub alter_create_constraint {
   return $index->type eq FOREIGN_KEY
       ? join(q{}, @{$fks})
       : join(' ', 'ALTER TABLE', $generator->quote($index->table->name), 'ADD', join(q{}, @{$defs}, @{$fks}));
+}
+
+sub drop_sequence {
+  my ($sequence, $options) = @_;
+  my $generator = _generator($options);
+  my $out       = "DROP SEQUENCE " . $generator->quote($sequence) . " CASCADE";
+
+  return $out;
 }
 
 sub drop_table {

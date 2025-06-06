@@ -100,6 +100,26 @@ EOESQL
 }
 
 {
+  my $sequence       =  SQL::Translator::Schema::Sequence->new(
+    name             => 'foo_db.bar_schema.baz_sequence',
+  );
+  is($sequence->name, 'foo_db.bar_schema.baz_sequence', 'Correct name');
+  my ($create, $fks)
+      = SQL::Translator::Producer::PostgreSQL::create_sequence($sequence,
+        { attach_comments => 1, add_drop_sequence => 1, }, );
+  my $expected = <<'EOESQL';
+--
+-- Sequence: foo_db.bar_schema.baz_sequence
+--
+DROP SEQUENCE foo_db.bar_schema.baz_sequence CASCADE;
+CREATE SEQUENCE foo_db.bar_schema.baz_sequence NO MINVALUE NO MAXVALUE NO CYCLE OWNED BY NONE;
+EOESQL
+
+  $expected =~ s/\n\z//msx;
+  is($create, $expected, 'SQL written right');
+}
+
+{
   my $table = SQL::Translator::Schema::Table->new(
     name     => 'foo.bar',
     comments => [ "multi\nline", 'single line' ]
