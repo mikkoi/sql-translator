@@ -339,6 +339,17 @@ sequence_id : NAME(s /\./)
         };
     }
 
+column_id : NAME(s /\./)
+    {
+        my ($column_name, $table_name, $schema_name, $database_name) = reverse @{ $item[1] };
+        $return = {
+            column_name => $column_name,
+            $table_name    ? (table_name    => $table_name   ) : (),
+            $schema_name   ? (schema_name   => $schema_name  ) : (),
+            $database_name ? (database_name => $database_name) : (),
+        };
+    }
+
 seq_sequence : /sequence/i
 
 sequence_name : NAME
@@ -694,17 +705,6 @@ column_constraint_type : /not null/i { $return = { type => 'not_null' } }
             on_delete        => $on_delete,
             on_update        => $on_update,
         }
-    }
-
-column_id : NAME(s /\./)
-    {
-        my ($column_name, $table_name, $schema_name, $database_name) = reverse @{ $item[1] };
-        $return = {
-            column_name => $column_name,
-            $table_name    ? (table_name    => $table_name   ) : (),
-            $schema_name   ? (schema_name   => $schema_name  ) : (),
-            $database_name ? (database_name => $database_name) : (),
-        };
     }
 
 table_id : schema_qualification(?) NAME {
