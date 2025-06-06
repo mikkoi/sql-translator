@@ -1289,19 +1289,10 @@ sub parse {
   my @seqs = map { $_ } values %{ $result->{sequences} };
   my @sequences = sort { $a->{order} <=> $b->{order} } @seqs;
   for my $sequence (@sequences) {
-    # Apply PostgreSQL database's default values!
-    # Because the default values are database specific,
-    # they cannot be set in the Schema class Sequence.
-    my $data_type = SQL::Translator::Schema::DataType->new(type => 'integer', size => 20);
-    $sequence->{temporary} //= 0; # Boolean
-    $sequence->{data_type} //= $data_type; # q{bigint};
-    $sequence->{increment} //= 1;
-    $sequence->{minvalue} //= 1; # Same as NO MINVALUE
-    $sequence->{maxvalue} //= 0; # Same as NO MAXVALUE
-    $sequence->{start} //= 1;
-    $sequence->{cache} //= 1;
-    $sequence->{cycle} //= 0; # Boolean, Same as NO CYCLE
-    $sequence->{owner} //= q{NONE};
+    my %default_values = _get_sequence_default_values();
+    for my $key (keys %default_values) {
+      $sequence->{$key} //= $default_values{$key};
+    }
     $schema->add_sequence( %{ $sequence } );
   }
 
@@ -1405,26 +1396,42 @@ sub parse {
   return 1;
 }
 
+sub create_sequence {
+  my ($class, %data) = @_;
+  my %default_values = _get_sequence_default_values();
+
+  for my $key (keys %default_values) {
+    $data{$key} //= $default_values{$key};
+  }
+  return SQL::Translator::Schema::Sequence->new( %data );
+};
+
 # Apply PostgreSQL database's default values!
 # Because the default values are database specific,
 # they cannot be set in the Schema class Sequence.
-sub create_sequence {
-  my ($class, %data) = @_;
+sub _get_sequence_default_values {
+  my %data;
 
-  my $data_type = SQL::Translator::Schema::DataType->new(type => 'integer', size => 20);
-  $data{temporary} //= 0; # Boolean
-  $data{unlogged} //= 0; # Boolean
-  $data{data_type} //= $data_type; # q{bigint};
-  $data{increment} //= 1;
-  $data{minvalue} //= 1; # Same as NO MINVALUE
-  $data{maxvalue} //= 0; # Same as NO MAXVALUE
-  $data{start} //= 1;
-  $data{cache} //= 1;
-  $data{cycle} //= 0; # Boolean, Same as NO CYCLE
-  $data{owner} //= q{NONE};
+  # PostgreSQL default sequence datatype is bigint, i.e. 64 bit integer.
+  # The maximum number stored in a 64 bit int
+  # is 2^64 – 1 = 18446744073709551615 (a 20 digit number)
+  my $data_type = SQL::Translator::Schema::DataType->new(
+    type => 'integer',
+    size => 20,
+  );
 
-  return SQL::Translator::Schema::Sequence->new( %data );
-};
+  $data{temporary} = 0; # Boolean
+  $data{unlogged}  = 0; # Boolean
+  $data{data_type} = $data_type; # q{bigint};
+  $data{increment} = 1;
+  $data{minvalue}  = 1; # Same as NO MINVALUE
+  $data{maxvalue}  = 0; # Same as NO MAXVALUE
+  $data{start}     = 1;
+  $data{cache}     = 1;
+  $data{cycle}     = 0; # Boolean, Same as NO CYCLE
+  $data{owner}     = q{NONE};
+  return %data;
+}
 
 1;
 
