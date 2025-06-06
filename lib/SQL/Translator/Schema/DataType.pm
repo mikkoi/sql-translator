@@ -89,7 +89,7 @@ our %type_mapping = (
   varbinary => SQL_VARBINARY,
   tinyblob  => SQL_BLOB,
   blob      => SQL_BLOB,
-  text      => SQL_LONGVARCHAR
+  text      => SQL_LONGVARCHAR,
 
 );
 
@@ -142,7 +142,7 @@ around comments => sub {
 
   return wantarray
       ? @{ $self->$orig }
-      : join("\n", @{ $self->$orig });
+      : join "\n", @{ $self->$orig };
 };
 
 =head2 type
@@ -226,7 +226,7 @@ has order => (is => 'rw', default => quote_sub(q{ 0 }));
 around order => sub {
   my ($orig, $self, $arg) = @_;
 
-  if (defined $arg && $arg =~ /^\d+$/) {
+  if (defined $arg && $arg =~ /^\d+$/msx) {
     return $self->$orig($arg);
   }
 
@@ -288,8 +288,8 @@ around equals => sub {
     # If only one is a ref, fail. -- rjbs, 2008-12-02
     return 0 if $lhs_is_ref xor $rhs_is_ref;
 
-    my $effective_lhs = $lhs_is_ref ? $$lhs : $lhs;
-    my $effective_rhs = $rhs_is_ref ? $$rhs : $rhs;
+    my $effective_lhs = $lhs_is_ref ? ${$lhs} : $lhs;
+    my $effective_rhs = $rhs_is_ref ? ${$rhs} : $rhs;
 
     if ( $self->_is_numeric_data_type
       && Scalar::Util::looks_like_number($effective_lhs)
@@ -301,16 +301,9 @@ around equals => sub {
   }
 
   return 0 unless $self->is_nullable eq $other->is_nullable;
-
-  #    return 0 unless $self->is_unique eq $other->is_unique;
   return 0 unless $self->is_primary_key eq $other->is_primary_key;
-
-  #    return 0 unless $self->is_foreign_key eq $other->is_foreign_key;
   return 0 unless $self->is_auto_increment eq $other->is_auto_increment;
-
-  #    return 0 unless $self->comments eq $other->comments;
-  return 0
-      unless $self->_compare_objects(scalar $self->extra, scalar $other->extra);
+  return 0 unless $self->_compare_objects(scalar $self->extra, scalar $other->extra);
   return 1;
 };
 
