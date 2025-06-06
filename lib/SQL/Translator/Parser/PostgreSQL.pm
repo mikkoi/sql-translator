@@ -331,11 +331,12 @@ create : CREATE /TRIGGER/i trigger_name before_or_after database_events /ON/i ta
 
 sequence_id : NAME(s /\./)
     {
-        my @ids = @{ $item[1] };
-        my $column_id = { sequence_name => $ids[ $#ids ] };
-        $column_id->{'schema_name'} = $ids[ $#ids - 2] if ($#ids - 2 >= 0);
-        $column_id->{'database_name'} = $ids[ $#ids - 3] if ($#ids - 3 >= 0);
-        $return = $column_id;
+        my ($sequence_name, $schema_name, $database_name) = reverse @{ $item[1] };
+        $return = {
+            sequence_name => $sequence_name,
+            $schema_name   ? (schema_name   => $schema_name  ) : (),
+            $database_name ? (database_name => $database_name) : (),
+        };
     }
 
 seq_sequence : /sequence/i
@@ -697,12 +698,13 @@ column_constraint_type : /not null/i { $return = { type => 'not_null' } }
 
 column_id : NAME(s /\./)
     {
-        my @ids = @{ $item[1] };
-        my $column_id = { column_name => $ids[ $#ids ] };
-        $column_id->{'table_name'} = $ids[ $#ids - 1] if ($#ids - 1 >= 0);
-        $column_id->{'schema_name'} = $ids[ $#ids - 2] if ($#ids - 2 >= 0);
-        $column_id->{'database_name'} = $ids[ $#ids - 3] if ($#ids - 3 >= 0);
-        $return = $column_id;
+        my ($column_name, $table_name, $schema_name, $database_name) = reverse @{ $item[1] };
+        $return = {
+            column_name => $column_name,
+            $table_name    ? (table_name    => $table_name   ) : (),
+            $schema_name   ? (schema_name   => $schema_name  ) : (),
+            $database_name ? (database_name => $database_name) : (),
+        };
     }
 
 table_id : schema_qualification(?) NAME {
