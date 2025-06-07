@@ -1054,6 +1054,7 @@ alter : alter_table table_id DROP /constraint/i NAME restrict_or_cascade ';'
 alter : alter_table table_id /owner/i /to/i NAME ';'
     { 1 }
 
+# TODO ALTER SEQUENCE
 # alter : alter_sequence NAME /owned/i /by/i column_name ';'
 #     { 1 }
 
