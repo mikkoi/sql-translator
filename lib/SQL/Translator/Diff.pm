@@ -20,7 +20,28 @@ has target_schema           => (is => 'rw',);
 has case_insensitive        => (is => 'rw',);
 has no_batch_alters         => (is => 'rw',);
 has ignore_missing_methods  => (is => 'rw',);
+has $_ => (
+  is      => 'rw',
+  default => quote_sub(q{ 0 }),
+  coerce  => quote_sub(q{ $_[0] ? 1 : 0 }),
+) foreach qw(add_drop_sequence add_drop_table no_comments show_warnings trace validate);
+
 has sqlt_args => (
+  is      => 'rw',
+  lazy    => 1,
+  default => quote_sub '{}',
+);
+has sequences_to_drop => (
+  is      => 'rw',
+  lazy    => 1,
+  default => quote_sub '[]',
+);
+has sequences_to_create => (
+  is      => 'rw',
+  lazy    => 1,
+  default => quote_sub '[]',
+);
+has sequence_diff_hash => (
   is      => 'rw',
   lazy    => 1,
   default => quote_sub '{}',
@@ -42,8 +63,15 @@ has table_diff_hash => (
 );
 
 my @diff_arrays = qw/
+    sequences_to_drop
+    sequences_to_create
     tables_to_drop
     tables_to_create
+    /;
+
+my @sequence_diff_hash_keys = qw/
+    sequence_options
+    sequence_renamed_from
     /;
 
 my @diff_hash_keys = qw/
@@ -72,7 +100,7 @@ sub schema_diff {
   $options ||= {};
 
   my $obj = SQL::Translator::Diff->new({
-    %$options,
+    %{$options},
     source_schema => $source_schema,
     target_schema => $target_schema,
     output_db     => $output_db
@@ -114,6 +142,48 @@ sub compute_differences {
     $preprocess->($target_schema);
   }
 
+  # Sequences
+  my %source_sequences_checked;
+  my @target_sequences = sort { $a->name cmp $b->name } $target_schema->get_sequences;
+  ## do source sequences exist in target?
+  for my $target_sequence (@target_sequences) {
+    my $target_sequence_name = $target_sequence->name;
+
+    my $source_sequence;
+    $self->sequence_diff_hash->{$target_sequence_name} = { map { $_ => [] } @diff_hash_keys };
+
+    if (my $old_name = $target_sequence->extra('renamed_from')) {
+      $source_sequence = $source_schema->get_sequence($old_name, $self->case_insensitive);
+      if ($source_sequence) {
+        $self->sequence_diff_hash->{$target_sequence_name}{sequence_renamed_from} = [ [ $source_sequence, $target_sequence ] ];
+      } else {
+        delete $target_sequence->extra->{renamed_from};
+        carp qq#Renamed sequence can't find old sequence "$old_name" for renamed table\n#;
+      }
+    } else {
+      $source_sequence = $source_schema->get_sequence($target_sequence_name, $self->case_insensitive);
+    }
+
+    unless ($source_sequence) {
+      ## sequence is new
+      ## add sequences(s) later.
+      push @{ $self->sequences_to_create }, $target_sequence;
+      next;
+    }
+    my $source_sequence_name = $source_sequence->name;
+    $source_sequence_name = lc $source_sequence_name if $self->case_insensitive;
+    $source_sequences_checked{$source_sequence_name} = 1;
+  }
+  for my $source_sequence ($source_schema->get_sequences) {
+    my $source_sequence_name = $source_sequence->name;
+
+    $source_sequence_name = lc $source_sequence_name if $self->case_insensitive;
+
+    push @{ $self->sequences_to_drop }, $source_sequence
+        unless $source_sequences_checked{$source_sequence_name};
+  }
+
+  # Tables
   my %src_tables_checked = ();
   my @tar_tables         = sort { $a->name cmp $b->name } $target_schema->get_tables;
   ## do original/source tables exist in target?
@@ -250,11 +320,51 @@ sub produce_diff_sql {
         ;
   }
 
+  # Sequences
+  # warn '$self:'.Dumper($self);
+  if (my @sequences = @{ $self->sequences_to_create }) {
+    my $translator = SQL::Translator->new(
+      producer_type     => $self->output_db,
+      add_drop_sequence => 0,
+      add_drop_table    => 0,
+      no_comments       => $self->{'no_comments'},
+
+      # TODO: sort out options
+      %{ $self->sqlt_args },
+    );
+    $translator->producer_args->{no_transaction} = 1;
+    foreach my $key (keys %{ $self->{'sqlt_args'} } ) {
+      # warn '$sqlt_args->{$key}:'.Dumper($self->{'sqlt_args'}->{$key});
+      $translator->producer_args->{$key} = $self->{'sqlt_args'}->{$key};
+    }
+    my $schema = $translator->schema;
+
+    # warn '@sequences:' . Dumper(\@sequences);
+    $schema->add_sequence($_) for @sequences;
+
+    unshift @diffs,
+
+        # Remove begin/commit here, since we wrap everything in one.
+        grep { $_ !~ /^(?:COMMIT|START(?: TRANSACTION)?|BEGIN(?: TRANSACTION)?)/ }
+        $producer_class->can('produce')->($translator);
+  }
+
+  if (my @sequences_to_drop = @{ $self->{sequences_to_drop} || [] }) {
+    my $meth = $producer_class->can('drop_sequence');
+
+    push @diffs,
+          $meth                         ? (map { $meth->($_, $self->sqlt_args) } @sequences_to_drop)
+        : $self->ignore_missing_methods ? "-- $producer_class cant drop_sequence"
+        :                                 die "$producer_class cant drop_sequence";
+  }
+
+  # Tables
   if (my @tables = @{ $self->tables_to_create }) {
     my $translator = SQL::Translator->new(
-      producer_type  => $self->output_db,
-      add_drop_table => 0,
-      no_comments    => 1,
+      producer_type     => $self->output_db,
+      add_drop_sequence => 0,
+      add_drop_table    => 0,
+      no_comments       => $self->{'no_comments'},
 
       # TODO: sort out options
       %{ $self->sqlt_args }

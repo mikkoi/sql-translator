@@ -46,7 +46,7 @@ CREATE SEQUENCE "master" INCREMENT BY 1 MINVALUE 1 MAXVALUE 5 START WITH 1 CACHE
 
 COMMENT on SEQUENCE "master" IS 'multi
 line
-single line';
+single line'
 EOESQL
 
   $expected =~ s/\n\z//msx;
@@ -65,7 +65,7 @@ EOESQL
 --
 -- Sequence: service
 --
-CREATE SEQUENCE "service" NO MINVALUE NO MAXVALUE NO CYCLE OWNED BY NONE;
+CREATE SEQUENCE "service" NO MINVALUE NO MAXVALUE NO CYCLE OWNED BY NONE
 EOESQL
 
   $expected =~ s/\n\z//msx;
@@ -92,7 +92,7 @@ EOESQL
 --
 CREATE TEMPORARY SEQUENCE foo.bar AS smallint INCREMENT BY 2 NO MINVALUE NO MAXVALUE NO CYCLE OWNED BY foo.baz.qux;
 
-COMMENT on SEQUENCE foo.bar IS 'Sequence tied to column qux in table foo.baz';
+COMMENT on SEQUENCE foo.bar IS 'Sequence tied to column qux in table foo.baz'
 EOESQL
 
   $expected =~ s/\n\z//msx;
@@ -112,7 +112,7 @@ EOESQL
 -- Sequence: foo_db.bar_schema.baz_sequence
 --
 DROP SEQUENCE foo_db.bar_schema.baz_sequence CASCADE;
-CREATE SEQUENCE foo_db.bar_schema.baz_sequence NO MINVALUE NO MAXVALUE NO CYCLE OWNED BY NONE;
+CREATE SEQUENCE foo_db.bar_schema.baz_sequence NO MINVALUE NO MAXVALUE NO CYCLE OWNED BY NONE
 EOESQL
 
   $expected =~ s/\n\z//msx;

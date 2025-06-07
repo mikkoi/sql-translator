@@ -248,10 +248,10 @@ sub produce {
   my @output;
   push @output, header_comment unless ($no_comments);
 
+  my (@sequence_defs, @sequence_fks);
   for my $sequence ($schema->get_sequences) {
 
-  my (@sequence_defs, @fks);
-    my ($sequence_def, $fks) = create_sequence(
+    my ($sequence_def, $sequence_fks) = create_sequence(
       $sequence,
       {
         generator         => $generator,
@@ -261,9 +261,10 @@ sub produce {
         attach_comments   => $pargs->{attach_comments}
       }
     );
+    # warn '$sequence_def:' . Dumper($sequence_def);
 
     push @sequence_defs, $sequence_def;
-    push @fks,        @$fks;
+    push @sequence_fks,  @{$sequence_fks};
   }
 
   my (@table_defs, @fks);
@@ -312,11 +313,12 @@ sub produce {
   }
 
   push @output, map {"$_;\n\n"} values %type_defs;
+  push @output, map {"$_;\n\n"} @sequence_defs;
   push @output, map {"$_;\n\n"} @table_defs;
   if (@fks) {
     push @output, "--\n-- Foreign Key Definitions\n--\n\n"
         unless $no_comments;
-    push @output, map {"$_;\n\n"} @fks;
+    push @output, map {"$_;\n\n"} @sequence_fks, @fks;
   }
 
   if ($WARN) {
@@ -435,11 +437,10 @@ sub create_sequence {
   $create_statement .= $sequence->cycle ? ' CYCLE' : ' NO CYCLE';
   $create_statement .= ' OWNED BY ' . ($sequence->owner ? $sequence->owner : 'NONE');
 
-  $create_statement .= qq{;};
   if (@comment_statements) {
+    $create_statement .= qq{;};
     $create_statement .= qq{\n\n};
     $create_statement .= join qq{;\n}, @comment_statements;
-    $create_statement .= qq{;};
   }
 
   return $create_statement, \@fks;
