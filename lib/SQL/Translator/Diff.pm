@@ -321,7 +321,6 @@ sub produce_diff_sql {
   }
 
   # Sequences
-  # warn '$self:'.Dumper($self);
   if (my @sequences = @{ $self->sequences_to_create }) {
     my $translator = SQL::Translator->new(
       producer_type     => $self->output_db,
@@ -334,12 +333,10 @@ sub produce_diff_sql {
     );
     $translator->producer_args->{no_transaction} = 1;
     foreach my $key (keys %{ $self->{'sqlt_args'} } ) {
-      # warn '$sqlt_args->{$key}:'.Dumper($self->{'sqlt_args'}->{$key});
       $translator->producer_args->{$key} = $self->{'sqlt_args'}->{$key};
     }
     my $schema = $translator->schema;
 
-    # warn '@sequences:' . Dumper(\@sequences);
     $schema->add_sequence($_) for @sequences;
 
     unshift @diffs,
