@@ -40,7 +40,6 @@ my @out = SQL::Translator::Diff::schema_diff(
   $target_schema,
   'MySQL',
   {
-    no_comments             => 1,
     no_batch_alters => 1,
     sqlt_args       => { quote_identifiers => 0 }
   }
@@ -112,7 +111,6 @@ $out = SQL::Translator::Diff::schema_diff(
   $target_schema,
   'MySQL',
   {
-    no_comments             => 1,
     ignore_index_names      => 1,
     ignore_constraint_names => 1,
     sqlt_args               => { quote_identifiers => 0 },
@@ -188,7 +186,7 @@ eq_or_diff($out, <<'## END OF DIFF', "No differences found", { context => 1 });
   $field->data_type('integer');
   $field->size(0);
   $out = SQL::Translator::Diff::schema_diff($schema, 'MySQL', $target_schema,
-    'MySQL', { no_comments => 1, sqlt_args => { quote_identifiers => 0 } });
+    'MySQL', { sqlt_args => { quote_identifiers => 0 } });
   eq_or_diff($out, <<'## END OF DIFF', "No differences found", { context => 1 });
 -- Convert schema 'create.sql' to 'create2.yml':;
 

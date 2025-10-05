@@ -40,7 +40,6 @@ my $out = SQL::Translator::Diff::schema_diff(
   $target_schema,
   'PostgreSQL',
   {
-    no_comments             => 1,
     sqlt_args => {
       quote_identifiers => 1,
     }
@@ -55,8 +54,6 @@ BEGIN;
 CREATE TABLE "added" (
   "id" bigint
 );
-
-CREATE SEQUENCE "AddedSequence" MINVALUE 3 MAXVALUE 256 NO CYCLE OWNED BY person.person_id;
 
 ALTER TABLE "employee" DROP CONSTRAINT "FK5302D47D93FE702E";
 
@@ -97,8 +94,6 @@ ALTER TABLE "person" ADD CONSTRAINT "UC_person_id" UNIQUE ("person_id");
 
 ALTER TABLE "person" ADD CONSTRAINT "UC_age_name" UNIQUE ("age", "name");
 
-DROP SEQUENCE "deleted" CASCADE;
-
 DROP TABLE "deleted" CASCADE;
 
 
@@ -112,13 +107,11 @@ $out = SQL::Translator::Diff::schema_diff(
   $target_schema,
   'PostgreSQL',
   {
-    no_comments             => 1,
     ignore_index_names      => 1,
     ignore_constraint_names => 1,
     sqlt_args               => {
       quote_identifiers => 0,
-      attach_comments   => 0,
-    },
+    }
   }
 );
 
@@ -130,8 +123,6 @@ BEGIN;
 CREATE TABLE added (
   id bigint
 );
-
-CREATE SEQUENCE AddedSequence MINVALUE 3 MAXVALUE 256 NO CYCLE OWNED BY person.person_id;
 
 ALTER TABLE employee DROP COLUMN job_title;
 
@@ -162,8 +153,6 @@ ALTER TABLE person RENAME COLUMN description TO physical_description;
 ALTER TABLE person ADD CONSTRAINT UC_person_id UNIQUE (person_id);
 
 ALTER TABLE person ADD CONSTRAINT UC_age_name UNIQUE (age, name);
-
-DROP SEQUENCE deleted CASCADE;
 
 DROP TABLE deleted CASCADE;
 

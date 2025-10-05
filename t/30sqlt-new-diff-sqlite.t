@@ -38,7 +38,6 @@ my $out = SQL::Translator::Diff::schema_diff(
   $target_schema,
   'SQLite',
   {
-    no_comments             => 1,
     no_batch_alters        => 1,
     ignore_missing_methods => 1,
     output_db              => 'SQLite',
@@ -91,7 +90,6 @@ $out = SQL::Translator::Diff::schema_diff(
   $target_schema,
   'SQLite',
   {
-    no_comments             => 1,
     ignore_index_names      => 1,
     ignore_constraint_names => 1,
     output_db               => 'SQLite',
